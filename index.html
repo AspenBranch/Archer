@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<!-- Program exported to HTML using the KA Project Exporter by @MushyAvocado 
+https://www.khanacademy.org/computer-programming/ka-project-exporter/5195486791385088
+-->
+	
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+	<title>Archer</title>
+	<style>
+		
+		
+		/* Change the color as you want */
+		:root {
+			--background-color: #000000;
+		}
+		
+		
+		html, body, #wrapper {
+			overflow: hidden;
+			width: 100%;
+		    height: 100%;
+			margin: 0px;
+			padding: 0px;
+		    width: calc(100% + 1px);
+		}
+		
+		body {
+		    background-color: var(--background-color);
+		}
+		
+		
+		canvas {
+			width: fit-content;
+			height: fit-content;
+		}
+		
+		canvas:focus {
+			outline: none;
+		}
+		
+		/* Automatically fits to the remaining height and centers the canvas it contains */
+		#wrapper {
+			padding: 0px;
+			margin: 0px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			width: 100%;
+		}
+		
+</style>
+</head>
+<body id="wrapper">
+    <!-- Canvases with a class of "sketch" are applied to the program in the order importPJS() is called. -->
+    <canvas class="sketch"></canvas>
+	<!-- Load the PJS library -->
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Khan/processing-js@master/processing.js"></script>
+	<!-- The exporter script must be loaded before the program script -->
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/Mushy-Avocado/KA-exporter@main/exporter.js"></script>
+	<!-- Run Khan Academy program and import PJS -->
+	<script type="application/javascript">
+		
+		
+		function program() {
+		    
+		    title("Archer");
+		    size(600, 600);
+		    
+		    // All code goes here
+			
+			noStroke();// remove outline
+			
+			// align things from center
+			textAlign(CENTER, CENTER);
+			
+			var score = 0;
+			var stage = "menu";
+			var clicked = false;// is user clicking
+			var keys = [];// store key input
+			var enemies = [];// array to store enemies
+			var arrows = [];// array to store arrows being fired
+			var bundles = [];// array to store bundles of arrows on ground
+			
+			// button function
+			function Btn(txt, x, y, d, clr, func) {
+			    // draw the button
+			    noFill();
+			    stroke(clr);
+			    strokeWeight(d/20);
+			    ellipse(x, y, d, d);
+			    noStroke();
+			    fill(clr);
+			    textSize(d/4);
+			    text(txt, x, y);
+			
+			    // collide mouse with button
+			    if (dist(x, y, mouseX, mouseY) <= d/2) {
+			        if (clicked) {
+			            func();
+			        }
+			    }
+			}
+			
+			// player
+			var p = {
+			    x: 300,
+			    y: 300,
+			    d: 30,
+			    r: 0,
+			    health: 100,
+			    arrows: 5,
+			    display: function() {
+			        // health bar
+			        fill(0, 255, 0);
+			        rect(this.x - this.health/6, this.y - 30, this.health/3, 5);
+			
+			        pushMatrix();
+			        translate(this.x, this.y);
+			        rotate(this.r);
+			
+			        // character
+			        fill(150, 50, 255);
+			        ellipse(0, 0, this.d, this.d);
+			
+			        // bow
+			        fill(100, 70, 40);
+			        rect(this.d/2, -this.d/2, 2, 30);
+			        noFill();
+			        stroke(150, 100, 50);
+			        strokeWeight(4);
+			        arc(this.d/2, 0, 20, 30, -90, 90);
+			        noStroke();
+			
+			        // arrow
+			        fill(100, 70, 40);
+			        if (this.arrows > 0) {
+			            rect(this.d/2, 0, 20, 2);
+			        }
+			
+			        popMatrix();
+			    },
+			    update: function() {
+			        // keep player in canvas
+			        this.x = constrain(this.x, this.d/2, 600 - this.d/2);
+			        this.y = constrain(this.y, this.d/2, 600 - this.d/2);
+			
+			        // key movement
+			        if (keys[LEFT]) {
+			            this.x -= 3;
+			        }
+			        if (keys[RIGHT]) {
+			            this.x += 3;
+			        }
+			        if (keys[UP]) {
+			            this.y -= 3;
+			        }
+			        if (keys[DOWN]) {
+			            this.y += 3;
+			        }
+			
+			        // rotate player
+			        this.r = atan2(mouseY - this.y, mouseX - this.x);
+			
+			        // fire arrows
+			        if (this.arrows > 0 && clicked) {
+			            arrows.push({
+			                x: this.x - sin(this.r + 90) * -this.d/2,
+			                y: this.y + cos(this.r + 90) * -this.d/2,
+			                w: 2,
+			                h: 20,
+			                r: this.r + 90,
+			                xv: sin(-this.r + 90) * 5,
+			                yv: cos(-this.r + 90) * 5,
+			            });
+			
+			            this.arrows--;
+			        }
+			
+			        // collide with arrow bundles
+			        for (var i = bundles.length - 1; i >= 0; i--) {
+			            if (dist(this.x, this.y, bundles[i].x, bundles[i].y) <= this.d/2 + bundles[i].d/2) {
+			                this.arrows += 5;
+			                bundles.splice(i, 1);
+			            }
+			        }
+			
+			        // collide with enemies
+			        for (var i = 0; i < enemies.length; i++) {
+			            if (dist(this.x, this.y, enemies[i].x, enemies[i].y) <= this.d/2 + enemies[i].d/2 && frameCount % 30 === 0) {
+			                this.health -= 5;
+			            }
+			        }
+			    },
+			};
+			
+			// arrow bundles
+			function ArrowBundle(x, y) {
+			    this.x = x;
+			    this.y = y;
+			    this.d = 20;
+			}
+			ArrowBundle.prototype = {
+			    display: function() {
+			        pushMatrix();
+			        translate(this.x, this.y);
+			        fill(100, 70, 40);
+			        for (var i = 0; i < 5; i++) {
+			            pushMatrix();
+			            rotate(i * 72);
+			            rect(-1, -10, 2, 20);
+			            popMatrix();
+			        }
+			        popMatrix();
+			    },
+			};
+			
+			// enemy prototype
+			function Enemy(x, y) {
+			    this.x = x;
+			    this.y = y;
+			    this.d = 30;
+			    this.xv = 0;
+			    this.yv = 0;
+			    this.health = 100;
+			}
+			Enemy.prototype = {
+			    display: function() {
+			        pushMatrix();
+			        translate(this.x, this.y);
+			
+			        // health bar
+			        fill(0, 255, 0);
+			        rect(0 - this.health/6, -30, this.health/3, 5);
+			
+			        // character
+			        fill(255, 0, 0);
+			        ellipse(0, 0, this.d, this.d);
+			        popMatrix();
+			    },
+			    update: function() {
+			        // move toward player
+			        if (this.x < p.x) {
+			            this.x += 2;
+			        }
+			        if (this.x > p.x) {
+			            this.x -= 2;
+			        }
+			        if (this.y < p.y) {
+			            this.y += 2;
+			        }
+			        if (this.y > p.y) {
+			            this.y -= 2;
+			        }
+			
+			        // collide with arrows
+			        for (var i = 0; i < arrows.length; i++) {
+			            var a = arrows[i];
+			            if (dist(this.x, this.y, a.x, a.y) <= this.d/2) {
+			                this.health -= 50;
+			                a.x = -200;
+			            }
+			        }
+			    },
+			};
+			
+			// draw everything
+			function draw() {
+			    background(100, 150, 100);// prevent smearing of canvas
+			    
+			    // draw arrows
+			    arrows.forEach(function(a) {
+			        // draw arrows
+			        pushMatrix();
+			        translate(a.x, a.y);
+			        rotate(a.r);
+			        fill(100, 70, 40);
+			        rect(0, 0, a.w, a.h);
+			        popMatrix();
+			    });
+			
+			    // draw arrow bundles
+			    bundles.forEach(function(b) {
+			        b.display();
+			    });
+			
+			    // draw player
+			    p.display();
+			
+			    // draw enemies
+			    enemies.forEach(function(e) {
+			        e.display();
+			    });
+			    
+			    if (stage === "game") {
+			        p.update();// move player
+			
+			        // add arrows
+			        if (frameCount % 1200 === 0) {
+			            bundles.push(new ArrowBundle(random(0, 600), random(0, 600)));
+			        }
+			
+			        // add enemies
+			        if (frameCount % 300 === 0) {
+			            enemies.push(new Enemy(random(0, 600), random(0, 600)));
+			        }
+			        // move enemies
+			        enemies.forEach(function(e) {
+			            e.update();
+			        });
+			        // remove enemies
+			        for (var i = enemies.length - 1; i >= 0; i--) {
+			            if (enemies[i].health <= 0) {
+			                score++;// increase score
+			                enemies.splice(i, 1);// delete enemy
+			            }
+			        }
+			
+			        // move arrows
+			        arrows.forEach(function(a) {
+			            a.x += a.xv;
+			            a.y += a.yv;
+			        });
+			        // remove arrows
+			        for (var i = arrows.length - 1; i >= 0; i--) {
+			            var a = arrows[i];
+			            if (a.x < -100 || a.x > 700 || a.y < -100 || a.y > 700) {
+			                arrows.splice(i, 1);
+			            }
+			        }
+			
+			        // end game
+			        if (p.health <= 0) {
+			            stage = "over";
+			        }
+			    } else if (stage === "over") {
+			        fill(0, 100);// cover game
+			        rect(0, 0, 600, 600);
+			        fill(255);// display score
+			        textSize(40);
+			        text("Score: " + score, 300, 300);
+			
+			        // replay button
+			        Btn("Replay", 300, 500, 150, color(255), function() {
+			            // restarting game
+			            p.health = 100;
+			            p.arrows = 5;
+			            score = 0;
+			            enemies.length = 0;
+			            stage = "game";
+			        });
+			    } else if (stage === "menu") {
+			        // title
+			        fill(0);
+			        textSize(80);
+			        text("ARCHER", 300, 150);
+			
+			        // instructions
+			        fill(0);
+			        textSize(20);
+			        text("Arrow keys to move.\nClick to shoot. Collect arrows bundles.", 300, 370);
+			
+			        // play button
+			        Btn("Play", 300, 500, 150, color(0), function() {
+			            stage = "game";
+			        });
+			    }
+			
+			    clicked = false;// stop clicking
+			}
+			
+			// detecting mouse input
+			mousePressed = function() {
+			    clicked = true;
+			};
+			
+			// detecting key movement
+			keyPressed = function() {
+			    keys[keyCode] = true;
+			};
+			keyReleased = function() {
+			    keys[keyCode] = false;
+			};
+		}
+		
+		runPJS(program);
+		
+		// Add reload button on KA --> <script>
+		
+	</script>
+</body>
+
+</html>
